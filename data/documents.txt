@@ -1,0 +1,5 @@
+Mac üzerinde çalıştıracağınız örnek RAG projesi.
+Bu dosya, Gemma 3 4B modeliyle yanıt üretirken kullanılacak örnek içerikleri barındırır.
+RAG (Retrieval-Augmented Generation), modelin hafızasını tazelemek için ilgili bağlamı 
+belgelerden çekip soruya eklemeyi hedefler.
+En güzel uygulama facebook
