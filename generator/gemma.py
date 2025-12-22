@@ -10,14 +10,22 @@ import requests
 
 DEFAULT_GEN_MODEL = "gemma3:4b"
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+MISSING_ANSWER = "belgede böyle bir bilgi yok"
 
 
 def build_prompt(question: str, context_chunks: Iterable[str]) -> str:
-    """Compose a concise instruction prompt with retrieved context."""
+    """Compose a strict instruction prompt with retrieved context.
+
+    Gereksinim: Bağlam boşsa veya soruyla açıkça ilişkili bilgi
+    içermiyorsa, model "belgede böyle bir bilgi yok" demelidir.
+    """
     context_block = "\n\n".join(context_chunks)
     prompt = (
         "Aşağıda kullanıcının sorusu ve ona yardımcı olabilecek bağlam parçaları var.\n"
-        "Bağlam yeterli değilse dürüstçe belirt ve hayal etme.\n"
+        "Yalnızca bağlamdaki bilgilere dayanarak cevap ver.\n"
+        "Bağlam soruyla ilgili anahtar kelimeler veya başlıklar içeriyorsa, oradaki bilgileri özetle.\n"
+        "Bağlam boşsa ya da soruyu yanıtlayacak bilgiyi barındırmıyorsa, tahmin etme ve dış bilgi kullanma.\n"
+        "Bu durumda cevabın tam olarak şu cümle olmalı: 'belgede böyle bir bilgi yok'.\n"
         f"---\nBağlam:\n{context_block}\n---\nSoru: {question}\nCevap:"
     )
     return prompt

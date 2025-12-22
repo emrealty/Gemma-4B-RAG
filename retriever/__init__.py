@@ -1,0 +1,2 @@
+INDEX_VERSION = "v2"
+

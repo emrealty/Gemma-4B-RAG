@@ -59,6 +59,8 @@ Gemma 4B-RAG/
 ├── generator/         # Gemma 3 4B ile yanıt üretimi
 │   └── gemma.py
 ├── main.py            # Terminal sohbet botu
+├── gui/               # PySide6 GUI sohbet arayüzü
+│   └── app.py         # GUI uygulaması (python -m gui)
 └── requirements.txt   # Python bağımlılıkları
 ```
 
@@ -66,3 +68,19 @@ Gemma 4B-RAG/
 
 - `OLLAMA_URL` ortam değişkeni ile Ollama sunucusu adresi özelleştirilebilir (varsayılan `http://localhost:11434`).
 - Bağlam verileri sınırlıysa modelin "bilinmiyor" demesi beklenir; bu bilinçli bir güvenlik önlemidir.
+
+## Grafik Arayüz (GUI)
+
+PySide6 ile basit bir sohbet arayüzü eklenmiştir. TXT dosyanızı yükleyip RAG ile sohbet edebilirsiniz.
+
+Çalıştırma:
+
+```bash
+python -m gui
+```
+
+Özellikler:
+
+- "TXT Yükle" ile yeni bir düz metin dosyası seçin; indeks otomatik oluşturulur.
+- Her mesaj gönderiminde seçili dosyadan RAG bağlamı çekilir ve Gemma 3 4B ile yanıt üretilir.
+- Bağlam yeterli değilse model, talimat gereği şu yanıtı verir: `belgede böyle bir bilgi yok`.
