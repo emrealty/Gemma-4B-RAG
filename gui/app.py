@@ -1,27 +1,24 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from embeddings.embedder import (
     DEFAULT_EMBED_MODEL,
     embed_document,
-    embed_texts,
 )
 from generator.gemma import MISSING_ANSWER, build_prompt, generate_with_gemma
 from retriever import INDEX_VERSION
 from retriever.faiss_store import FaissStore
+from retriever.query import has_relevant_context, retrieve_context
 
 
 INDEX_PATH = Path("embeddings/index.faiss")
 METADATA_PATH = Path("embeddings/chunks.json")
-TOKEN_PATTERN = re.compile(r"[\w']+", re.UNICODE)
 
 
 class TaskThread(QtCore.QThread):
@@ -61,58 +58,6 @@ def build_store_from_document(doc_path: Path, embed_model: str = DEFAULT_EMBED_M
     # Persist to disk for parity with CLI usage
     store.save(INDEX_PATH, METADATA_PATH)
     return store
-
-
-def _keyword_overlap(question: str, text: str) -> int:
-    q_tokens = set(TOKEN_PATTERN.findall(question.lower()))
-    if not q_tokens:
-        return 0
-    text_tokens = set(TOKEN_PATTERN.findall(text.lower()))
-    return len(q_tokens & text_tokens)
-
-
-def retrieve_context(
-    store: FaissStore,
-    question: str,
-    *,
-    k: int = 20,
-    top_k: int = 3,
-    embed_model: str = DEFAULT_EMBED_MODEL,
-) -> List[str]:
-    query_vector = embed_texts([question], model=embed_model)[0]
-    query_vector = np.expand_dims(query_vector, axis=0)
-    results = store.search(query_vector, k=k)
-    candidates: List[tuple[int, int, float, dict]] = []
-    seen_keys = set()
-
-    for meta, score in results:
-        key = (meta.get("source"), meta.get("chunk_id"))
-        seen_keys.add(key)
-        overlap = _keyword_overlap(question, meta["text"])
-        candidates.append((1 if overlap else 0, overlap, float(score), meta))
-
-    lexical_matches = []
-    for meta in store.metadata:
-        key = (meta.get("source"), meta.get("chunk_id"))
-        if key in seen_keys:
-            continue
-        overlap = _keyword_overlap(question, meta["text"])
-        if overlap:
-            lexical_matches.append((overlap, meta))
-
-    lexical_matches.sort(key=lambda item: item[0], reverse=True)
-    for overlap, meta in lexical_matches[: max(0, top_k - len(candidates)) + top_k]:
-        key = (meta.get("source"), meta.get("chunk_id"))
-        if key in seen_keys:
-            continue
-        candidates.append((1, overlap, 0.0, meta))
-        seen_keys.add(key)
-
-    if not candidates:
-        return []
-
-    candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
-    return [meta["text"] for _, _, _, meta in candidates[:top_k]]
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -242,7 +187,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         def _answer() -> str:
             context_chunks = retrieve_context(self._store, question, embed_model=self._embed_model)
-            if not context_chunks or all(_keyword_overlap(question, chunk) == 0 for chunk in context_chunks):
+            if not context_chunks or not has_relevant_context(question, context_chunks):
                 return MISSING_ANSWER
             prompt = build_prompt(question, context_chunks)
             answer = generate_with_gemma(prompt)
